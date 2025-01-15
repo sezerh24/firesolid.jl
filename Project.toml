@@ -1,29 +1,15 @@
-name = "firesolid"
-uuid = "8835567d-bc69-4eab-930a-4966f2f7dae8"
-authors = ["sezerh24 <34803300+sezerh24@users.noreply.github.com> and contributors"]
-version = "1.0.0-DEV"
-
 [deps]
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-DiffusionFlux = "0088ed5a-e206-4379-b0fa-25d85632c804"
 ExtendableGrids = "cfc395e8-590f-11e8-1f13-43a2532b2fa8"
 ExtendableSparse = "95c220a8-a1cf-11e9-0c77-dbfce5f500b3"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 GridVisualize = "5eed8a63-0fb0-45eb-886d-8d5a387d12b8"
-IdealGas = "7aa10a8e-8b87-4952-8d6b-aae44b8b139e"
-Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LessUnitful = "f29f6376-6e90-4d80-80c9-fb8ec61203d5"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-LinearInterpolations = "b20c7882-2490-4592-a606-fbbfe9e745e8"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
-QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-RxnHelperUtils = "58b8660e-aa37-4837-a287-8893ee0015f8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-TransportProperties = "5257e33d-5a01-4fd1-9680-e504fee35d5b"
-Trapz = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
 VoronoiFVM = "82b139dc-5afc-11e9-35da-9b9bdfd336f3"
-
-[compat]
-julia = "1.10"
