@@ -21,6 +21,8 @@ Heat Fluid Flow 7 (1997) 609–625.
 
 @unitfactors J K kg mol W m kJ °C s kW R cm
 
+#= 
+Full geometry
 H_Fastener = 1.2cm
 Width = 2cm 
 Ny = 32
@@ -33,6 +35,22 @@ grid = simplexgrid(X, Y)
 rect!(grid, [0.0, H_Fastener/4], [Width, H_Fastener]; region = 2, bregions = [1,2,3,2])
 rect!(grid, [(Width-FTW)/2, 0.0], [(Width+FTW)/2, H_Fastener/4]; region = 3, bregions = [1, 1, 4, 1])
 rect!(grid, [(Width-FBW)/2, H_Fastener/4], [(Width+FBW)/2, H_Fastener]; region = 3, bregions = [0, 4, 3, 4])
+gridnew = subgrid(grid, [2,3])
+=#
+
+#Symetric Geometry
+H_Fastener = 1.2cm
+Width = 2cm/2
+Ny = 64
+Nx = 64
+FTW = 1cm/2
+FBW = 0.5cm/2
+X = collect(0:Width/Nx:Width)
+Y = collect(0:H_Fastener/Ny:H_Fastener)
+grid = simplexgrid(X, Y)
+rect!(grid, [0.0, H_Fastener/4], [Width, H_Fastener]; region = 2, bregions = [1,2,3,2])
+rect!(grid, [(Width-FTW), 0.0], [Width, H_Fastener/4]; region = 3, bregions = [1, 1, 4, 1])
+rect!(grid, [(Width-FBW), H_Fastener/4], [Width, H_Fastener]; region = 3, bregions = [0, 2, 3, 4])
 gridnew = subgrid(grid, [2,3])
 
 
@@ -208,7 +226,7 @@ keepcurrent_linear =false,
 )=#
 
 #dt = 1
-problemfiber = ODEProblem(sysfiber,inivalfiber,(0,final_t))
+problemfiber = ODEProblem(sysfiber,inivalfiber,(0,final_t*1000))
 #=
 using Symbolics
 du0 = copy(inivalfiber)
@@ -286,12 +304,12 @@ smoldsol=reshape(Sol,SmoldSystem)
 smoldsol=reshape(odesol,sysfiber)
 concentrations = Dict{String, Vector{Float64}}()
 
-
+tsol = smoldsol
 #density = tsol.u[end][1, :]
-Temp    = tsol.u[end][2, :]
+Temp    = tsol.u[800][2, :]
 #mass    = tsol.u[end][3, :]
-density = view(tsol.u[end][1, :], subgrid1)
-mass = view(tsol.u[end][3, :], subgrid1)
+density = view(tsol.u[800][1, :], subgrid1)
+mass = view(tsol.u[800][3, :], subgrid1)
 
 #=
 ρₙ = 1;
@@ -311,8 +329,8 @@ layout=(1,3), legend = :lt
 )
 
 scalarplot!(vis1[1,1], gridnew, Temp, label="Temperature")
-#scalarplot!(vis1[1,2],subgrid1, density, label="desnity")
-#scalarplot!(vis1[1,3], subgrid1, mass, label="mass")  
+scalarplot!(vis1[1,2],subgrid1, density, label="desnity")
+scalarplot!(vis1[1,3], subgrid1, mass, label="mass")  
 
 Tcell1 = [matrix[Tₙ, 1] for matrix in tsol.u] .-273.18
 Tcell2 = [matrix[Tₙ, Int(floor(Nx/10))] for matrix in tsol.u] .-273.18
