@@ -175,9 +175,6 @@ sol=solve(problem,ImplicitEuler(),
                                    abstol=1.0e-3,
                                    initializealg=NoInit(),
                                   dtmin=1e-6,
-                                  # force_dtmin = true,
-                                   #progress=true,
-                                   #progress_steps=1,
 
                                    )
 
