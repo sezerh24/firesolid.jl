@@ -11,20 +11,20 @@ using LessUnitful
 
 # Physical Parameters
 const ρ_c = 1500.0         # kg/m^3
-const ρₐ = 1.1             # kg/m^3
+const ρₐ = 1.1            # kg/m^3
 const C_pc = 1000.0        # J/kg-K
 const C_pa = 1000.0        # J/kg-K
-const Dₐ = 2e-5            # m^2/s
+const Dₐ = 2e-5           # m^2/s
 const ε = 0.2              # Porosity
-const Eₐ = 7e4             # J/mol
-const Bₐ = 4.8e-10         # 1/s
+const Eₐ = 7e4            # J/mol
+const Bₐ = 4.8e-10        # 1/s
 const R = 8.314            # J/mol-K
 const V = 0.6e-5           # m/s
-const λₛ = 0.12             # W/m-K
+const λₛ = 0.12           # W/m-K
 const ΔH = 3e5             # J/mol-O2
 const MW_O2 = 32e-3        # kg/mol
 const T₀ = 293.0           # Initial temperature (K)
-const c1₀ = 0.21           # Initial oxygen concentration
+const c1₀ = 0.21          # Initial oxygen concentration
 const n = 1.0              # Reaction order
 const f_c2 = 1.0           # Weathering function
 const Days = 472           # Simulation time (days)
@@ -83,9 +83,9 @@ grid = simplexgrid(0:L/Nx:L)
 gridplot(grid;Plotter=GLMakie,resolution = (600, 250), legend =:rt)
 
 function storage!(f, u, node, data)
-    f[1] =  ε * ρₐ * u[c₁]                     # Storage for oxygen concentration
-    f[2] = (1 -  ε) * ρ_c *  C_pc * u[T]   # Storage for temperature
-    f[3] = u[c₂]                                   # Storage for adsorbed oxygen
+    f[c₁] =  ε * ρₐ * u[c₁]                     # Storage for oxygen concentration
+    f[T] = (1 -  ε) * ρ_c *  C_pc * u[T]   # Storage for temperature
+    f[c₂] = u[c₂]                                   # Storage for adsorbed oxygen
     return nothing
 end
 
@@ -94,29 +94,29 @@ function flux!(f, u, edge, data)
     vel_c1 = project(edge, ρₐ *  V)
     Bplus =  ε *  Dₐ * ρₐ * fbernoulli(vel_c1 / ( ε *  Dₐ * ρₐ))
     Bminus =  ε *  Dₐ * ρₐ * fbernoulli(-vel_c1 / ( ε *  Dₐ * ρₐ))
-    f[1] = Bminus * u[c₁, 1] - Bplus * u[c₁, 2]
+    f[c₁] = Bminus * u[c₁, 1] - Bplus * u[c₁, 2]
 
     # Convective and diffusive flux for T
     vel_T = project(edge, ρₐ *  C_pa *  V)
     Bplus =  λₛ * fbernoulli(vel_T /  λₛ)
     Bminus =  λₛ * fbernoulli(-vel_T /  λₛ)
-    f[2] = Bminus * u[T, 1] - Bplus * u[T, 2]
+    f[T] = Bminus * u[T, 1] - Bplus * u[T, 2]
 
     return nothing
 end
 
 function reaction!(f, u, node, data)
     # Reaction rate for adsorbed oxygen
-    r_ads =  Bₐ * u[c₁]^ n *  f_c2 * exp(- Eₐ /  R * (1 / u[T] - 1 /  T₀))
+    r_ads =  -Bₐ*u[c₁]^(n) * f_c2 *abs(exp(- Eₐ /  R * (1 / u[T] - 1 /  T₀)))
 
     # Source term for oxygen concentration
-    f[1] = - (1 -  ε) * ρ_c * r_ads
+    f[c₁] = - (1 -  ε) * ρ_c * r_ads
 
     # Source term for temperature
-    f[2] = (1 -  ε) * ρ_c *  ΔH /  MW_O2 * r_ads
+    f[T] = (1 -  ε) * ρ_c *  ΔH /  MW_O2 * r_ads
 
     # Source term for adsorbed oxygen
-    f[3] = r_ads
+    f[c₂] = r_ads
     return nothing
 end
 
