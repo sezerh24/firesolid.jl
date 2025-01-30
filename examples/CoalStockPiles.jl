@@ -2,12 +2,12 @@ using LinearAlgebra, Printf, LaTeXStrings
 using ExtendableGrids, VoronoiFVM
 using ExtendableSparse, LinearSolve
 using GridVisualize
-#using CairoMakie
 using GLMakie
 using Plots
 using OrdinaryDiffEq
 using DataFrames
 using LessUnitful
+using MAT
 
 # Physical Parameters
 const ρ_c = 1500.0         # kg/m^3
@@ -17,7 +17,7 @@ const C_pa = 1000.0        # J/kg-K
 const Dₐ = 2e-5           # m^2/s
 const ε = 0.2              # Porosity
 const Eₐ = 7e4            # J/mol
-const Bₐ = 4.8e-10        # 1/s
+const Bₐ = 4.2e-10        # 1/s
 const R = 8.314            # J/mol-K
 const V = 0.6e-5           # m/s
 const λₛ = 0.12           # W/m-K
@@ -27,7 +27,7 @@ const T₀ = 293.0           # Initial temperature (K)
 const c1₀ = 0.21          # Initial oxygen concentration
 const n = 1.0              # Reaction order
 const f_c2 = 1.0           # Weathering function
-const Days = 472           # Simulation time (days)
+const Days = 471           # Simulation time (days)
 
 # Additional Parameters
 const L = 10.0             # Length of the coal pile (m)
@@ -166,17 +166,17 @@ tend = Days * 24 * 60 * 60  # Total simulation time (s)
 problem = ODEProblem(sys, inival, (0.0, tend))
 
 # Solver
-#sol = solve(problem, Rosenbrock23(); dt = Δt, reltol = 1e-5, abstol = 1e-5)
-sol=solve(problem,ImplicitEuler(),  
+sol = solve(problem, Rosenbrock23(); dt = Δt, reltol = 1e-5, abstol = 1e-5)
+#sol=solve(problem,ImplicitEuler(),  
 
-                                   force_dtmin=true,
-                                   adaptive=true,
-                                   reltol=1.0e-3,
-                                   abstol=1.0e-3,
-                                   initializealg=NoInit(),
-                                  dtmin=1e-6,
+                                   #force_dtmin=true,
+                                   #adaptive=true,
+                                   #reltol=1.0e-3,
+                                   #abstol=1.0e-3,
+                                   #initializealg=NoInit(),
+                                  #dtmin=1e-6,
 
-                                   )
+                                   #)
 
 sol=reshape(sol,sys)
 
@@ -205,3 +205,69 @@ for t in time_points
     scalarplot!(vis[1, 3], grid, sol(t)[c₂, :], 
                 label = "c₂ at day $(t / (24 * 60 * 60))", clear = false)
 end
+
+# Load MATLAB data
+mat_data = matread("Coal_Stockpile_Case_A_Final.mat")
+
+# Extract MATLAB experimental data
+A_temp_139 = mat_data["A_temp_139"]
+A_temp_278 = mat_data["A_temp_278"]
+A_temp_471 = mat_data["A_temp_471"]
+
+A_concent_139 = mat_data["A_concent_139"]
+A_concent_278 = mat_data["A_concent_278"]
+A_concent_471 = mat_data["A_concent_471"]
+
+A_adsorb_139 = mat_data["A_adsorb_139"]
+A_adsorb_278 = mat_data["A_adsorb_278"]
+A_adsorb_471 = mat_data["A_adsorb_471"]
+
+# Define distance range (Ensure it matches the solution length)
+distance = range(0, stop=10, length=60)
+
+# Extract Julia simulation data at time points
+sol_139 = sol(139 * 24 * 60 * 60)
+sol_278 = sol(278 * 24 * 60 * 60)
+sol_471 = sol(471 * 24 * 60 * 60)
+
+# Plot Temperature
+p1 = Plots.plot(distance, sol_139[T, 1:end-1], label="Current Model, t= 139th day", linewidth=2, color=:red)
+ Plots.plot!(p1, distance, sol_278[T, 1:end-1], label="Current Model, t= 278th day", linewidth=2, color=:blue)
+ Plots.plot!(p1, distance, sol_471[T, 1:end-1], label="Current Model, t= 471th day", linewidth=2, color=:black)
+
+ Plots.plot!(p1, A_temp_139[:,1], A_temp_139[:,2], linestyle=:dash, linewidth=2, color=:magenta, label="Kumaran et. al (2019), t=139th day")
+ Plots.plot!(p1, A_temp_278[:,1], A_temp_278[:,2], linestyle=:dash, linewidth=2, color=:blue, label="Kumaran et. al (2019), t=278th day")
+ Plots.plot!(p1, A_temp_471[:,1], A_temp_471[:,2], linestyle=:dash, linewidth=2, color=:black, label="Kumaran et. al (2019), t=471th day")
+
+Plots.xlabel!(p1, "Distance (m)")
+Plots.ylabel!(p1, "Temperature (K)",guidefont=(6, "times"))
+Plots.title!(p1, "Temperature Distribution in Coal Pile")
+
+# Plot Oxygen Concentration
+p2 = Plots.plot(distance, sol_139[c₁, 1:end-1], label="Current Model, t= 139th day", linewidth=2, color=:red)
+ Plots.plot!(p2, distance, sol_278[c₁, 1:end-1], label="Current Model, t= 278th day", linewidth=2, color=:blue)
+ Plots.plot!(p2, distance, sol_471[c₁, 1:end-1], label="Current Model, t= 471th day", linewidth=2, color=:black)
+
+ Plots.plot!(p2, A_concent_139[:,1], A_concent_139[:,2], linestyle=:dash, linewidth=2, color=:magenta, label="Kumaran et. al (2019), t=139th day")
+ Plots.plot!(p2, A_concent_278[:,1], A_concent_278[:,2], linestyle=:dash, linewidth=2, color=:blue, label="Kumaran et. al (2019), t=278th day")
+ Plots.plot!(p2, A_concent_471[:,1], A_concent_471[:,2], linestyle=:dash, linewidth=2, color=:black, label="Kumaran et. al (2019), t=471th day")
+
+Plots.xlabel!(p2, "Distance (m)")
+Plots.ylabel!(p2, "Oxygen Concentration (%v/v)",guidefont=(6, "times"))
+Plots.title!(p2, "Oxygen Concentration in Coal Pile")
+
+# Plot Oxygen Adsorbed
+p3 = Plots.plot(distance, sol_139[c₂, 1:end-1], label="Current Model, t= 139th day", linewidth=2, color=:red)
+ Plots.plot!(p3, distance, sol_278[c₂, 1:end-1], label="Current Model, t= 278th day", linewidth=2, color=:blue)
+ Plots.plot!(p3, distance, sol_471[c₂, 1:end-1], label="Current Model, t= 471th day", linewidth=2, color=:black)
+
+ Plots.plot!(p3, A_adsorb_139[:,1], A_adsorb_139[:,2], linestyle=:dash, linewidth=2, color=:magenta, label="Kumaran et. al (2019), t=139th day")
+ Plots.plot!(p3, A_adsorb_278[:,1], A_adsorb_278[:,2], linestyle=:dash, linewidth=2, color=:blue, label="Kumaran et. al (2019), t=278th day")
+Plots.plot!(p3, A_adsorb_471[:,1], A_adsorb_471[:,2], linestyle=:dash, linewidth=2, color=:black, label="Kumaran et. al (2019), t=471th day")
+
+Plots.xlabel!(p3, "Distance (m)")
+Plots.ylabel!(p3, "Oxygen Adsorbed in Coal (kg O₂/kg coal)", guidefont=(6, "times"))
+Plots.title!(p3, "Oxygen Adsorbed in Coal Pile")
+
+# Combine all plots in a single window
+Plots.plot(p1, p2, p3, layout=(3,1), size=(600, 600))
