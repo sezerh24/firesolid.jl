@@ -6,7 +6,8 @@ using Plots, OrdinaryDiffEq, DataFrames, LessUnitful
 using SimplexGridFactory
 using Triangulate
 using TetGen
-import CairoMakie
+using CairoMakie
+using ColorSchemes
 
 # ---- Physical Parameters ----
 const ρ_c = 1500.0       # kg/m^3 (Coal density)
@@ -18,7 +19,7 @@ const ε = 0.2           # Porosity
 const Eₐ = 7e4          # J/mol (Activation energy)
 const Bₐ = 4.2e-10      # 1/s (Pre-exponential factor)
 const R = 8.314         # J/mol-K (Universal gas constant)
-const V = 0.6e-5      # m/s (Velocity in x-direction)
+#const V = 0.6e-5      # m/s (Velocity in x-direction)
 const λₛ = 0.12         # W/m-K (Thermal conductivity)
 const ΔH = 3e5          # J/mol-O₂ (Heat of reaction)
 const MW_O2 = 32e-3     # kg/mol (Molecular weight of O₂)
@@ -35,6 +36,10 @@ const Nx = 40     # Number of grid points in x
 const Ny = 20     # Number of grid points in y
 const Δt = 7200.0  # Time step (s)
 
+# ---- Velocity (X and Y Components) ----
+const V_x = 0  # m/s (Velocity in x-direction)
+const V_y = -0.6e-5  # m/s (Smaller velocity in y-direction)
+const Vr = (V_x, V_y)  # Velocity as a vector
 # ---- Create 2D Grid ----
 #grid = simplexgrid(0:Lx/Nx:Lx, 0:Ly/Ny:Ly)
 #gridplot(grid; Plotter=GLMakie, resolution=(600, 400), legend=:rt)
@@ -59,7 +64,7 @@ builder_coal = let
     facet!(b, p4, p1)
 
     # Set mesh refinement - smaller value for better quality
-    options!(b; maxvolume = 1/20)
+    options!(b; maxvolume = 1/10)
 
     # Return the builder
     b
@@ -114,24 +119,30 @@ end
 real_value(x) = x isa ForwardDiff.Dual ? ForwardDiff.value(x) : x
 
 function flux!(f, u, edge, sim_data)
-    # Extract values properly
+    # Define velocity components in x and y direction
+    V_x = 0  # Velocity in x-direction (m/s)
+    V_y = -0.6e-4  # Velocity in y-direction (m/s), less than x to mimic real-life scenario
+
+    # Define velocity vector
+    velocity_vector = [V_x, V_y]
+
+    # Project velocity onto the edge (accounts for edge direction)
+    V_proj = project(edge, velocity_vector)  
+
+    # Extract values properly from dual numbers
     u_c1_edge = [real_value(u[c₁, i]) for i in 1:2]  # Extract for both edge points
     u_T_edge = [real_value(u[T, i]) for i in 1:2]
 
-    # Ensure `project` receives a valid vector
-    vel_c1 = project(edge, u_c1_edge) * V
-    vel_T = project(edge, u_T_edge) * V
-
     # Compute Bernoulli flux factors for convection and diffusion
-    Bplus = ε * Dₐ * ρₐ * fbernoulli(vel_c1 / (ε * Dₐ * ρₐ))
-    Bminus = ε * Dₐ * ρₐ * fbernoulli(-vel_c1 / (ε * Dₐ * ρₐ))
+    Bplus = ε * Dₐ * ρₐ * fbernoulli(V_proj / (ε * Dₐ * ρₐ))
+    Bminus = ε * Dₐ * ρₐ * fbernoulli(-V_proj / (ε * Dₐ * ρₐ))
 
     # Compute oxygen flux
     f[c₁] = Bminus * u_c1_edge[1] - Bplus * u_c1_edge[2]
 
     # Compute temperature flux
-    Bplus_T = λₛ * fbernoulli(vel_T / λₛ)
-    Bminus_T = λₛ * fbernoulli(-vel_T / λₛ)
+    Bplus_T = λₛ * fbernoulli(V_proj / λₛ)
+    Bminus_T = λₛ * fbernoulli(-V_proj / λₛ)
 
     f[T] = Bminus_T * u_T_edge[1] - Bplus_T * u_T_edge[2]
 
@@ -165,7 +176,7 @@ sim_data = (
     ε = ε,
     Eₐ = Eₐ,
     R = R,
-    V = V,
+    Vr = Vr,
     λₛ = λₛ,
     ΔH = ΔH,
     MW_O2 = MW_O2,
@@ -196,20 +207,66 @@ sol = solve(problem, Rosenbrock23(); dt=Δt, reltol=1e-5, abstol=1e-5)
 sol = reshape(sol, sys)
 
 # Ensure visualization setup
-vis_T = GridVisualizer(; resolution = (800, 800), Plotter=GLMakie)
-vis_c1 = GridVisualizer(; resolution = (800, 800), Plotter=GLMakie)
-vis_c2 = GridVisualizer(; resolution = (800, 800), Plotter=GLMakie)
+vis_T = GridVisualizer(; size = (500, 600), Plotter=GLMakie)
+vis_c1 = GridVisualizer(; size = (500, 600), Plotter=GLMakie)
+vis_c2 = GridVisualizer(; size = (500, 600), Plotter=GLMakie)
 
 # Plot Temperature Distribution
-scalarplot!(vis_T, coal_grid, sol[end][T, :]; title="Final Temperature Distribution", colormap=:thermal)
+scalarplot!(vis_T, coal_grid, sol[end][T, :];
+    title = "Final Temperature Distribution",
+    colormap = :jet,  
+    contour_lines = false,
+    colorbar_label = "Temperature (K)",
+    clear = false,
+    xlabel="Distance", ylabel="Temperature (K)"
+)
 
 # Plot Oxygen Concentration
-scalarplot!(vis_c1, coal_grid, sol[end][c₁, :]; title="Final Oxygen Concentration", colormap=:thermal)
+scalarplot!(vis_c1, coal_grid, sol[end][c₁, :];
+    title = "Final Oxygen Concentration",
+    colormap = :jet,
+    contour_lines = false,
+    colorbar_label = "Oxygen Concentration (%)",
+    clear = false,
+    xlabel="Distance", ylabel="Oxygen Concentration (%)"
+)
 
 # Plot Adsorbed Oxygen
-scalarplot!(vis_c2, coal_grid, sol[end][c₂, :]; title="Final Adsorbed Oxygen", colormap=:thermal)
+scalarplot!(vis_c2, coal_grid, sol[end][c₂, :];
+    title = "Final Adsorbed Oxygen",
+    colormap = :jet,
+    contour_lines = false,
+    colorbar_label = "Oxygen adsorbed in coal (kg O₂/kg coal)",
+    clear = false,
+    xlabel="Distance", ylabel="Oxygen adsorbed in coal (kg O₂/kg coal)"
+)
 
 # Display plots
 reveal(vis_T)
 reveal(vis_c1)
 reveal(vis_c2)
+
+#= Ensure visualization setup
+vis_T = GridVisualizer(; size = (800, 800), Plotter=GLMakie)
+vis_c1 = GridVisualizer(; size = (800, 800), Plotter=GLMakie)
+vis_c2 = GridVisualizer(; size = (800, 800), Plotter=GLMakie)
+
+# Plot Temperature Distribution
+scalarplot!(vis_T, coal_grid, sol[end][T, :];
+title = "Final Temperature Distibution",
+colormap = :jet,  
+contour_lines = :false,
+colorbar_title = "Temperature (°C)"  
+)
+
+# Plot Oxygen Concentration
+scalarplot!(vis_c1, coal_grid, sol[end][c₁, :]; title="Final Oxygen Concentration", colormap=:jet, contour_lines = false)
+
+# Plot Adsorbed Oxygen
+scalarplot!(vis_c2, coal_grid, sol[end][c₂, :]; title="Final Adsorbed Oxygen", colormap=:jet, contour_lines = false)
+
+# Display plots
+reveal(vis_T)
+reveal(vis_c1)
+reveal(vis_c2)
+=#
